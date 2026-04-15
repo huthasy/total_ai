@@ -3,7 +3,7 @@ import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { runAgentFlow } from './agents';
+import { runAgentFlow, getCurrentTokens } from './agents';
 
 dotenv.config();
 
@@ -21,6 +21,9 @@ const io = new Server(server, {
 
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
+  
+  // Send current token usage to new client
+  socket.emit('initial_tokens', getCurrentTokens());
 
   socket.on('new_task', async (data) => {
     console.log('Received task:', data);

@@ -52,10 +52,14 @@ function App() {
       setMessages(prev => [...prev, msg]);
     });
 
-    socketRef.current.on('token_usage', (data: { agent: string, tokensUsed: number }) => {
+    socketRef.current.on('initial_tokens', (data: Record<string, number>) => {
+      setTokens(data);
+    });
+
+    socketRef.current.on('token_usage', (data: { agent: string, tokensUsed: number, total: number }) => {
       setTokens(prev => ({
         ...prev,
-        [data.agent]: prev[data.agent] + data.tokensUsed
+        [data.agent]: data.total
       }));
     });
 

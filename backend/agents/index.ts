@@ -1,7 +1,33 @@
-import { Socket } from 'socket.io';
-import { OpenAI } from 'openai';
-import dotenv from 'dotenv';
-dotenv.config();
+import fs from 'fs';
+import path from 'path';
+
+const TOKEN_STORE_PATH = path.join(__dirname, '../../tokenStore.json');
+
+// Global Token Registry
+let tokenRegistry: Record<string, number> = {
+    Gemini: 0,
+    DeepSeek: 0,
+    Groq: 0,
+    OpenRouter: 0
+};
+
+// Load initial tokens
+if (fs.existsSync(TOKEN_STORE_PATH)) {
+    try {
+        const data = JSON.parse(fs.readFileSync(TOKEN_STORE_PATH, 'utf-8'));
+        tokenRegistry = { ...tokenRegistry, ...data };
+    } catch (e) {
+        console.error('Lỗi khi load tokenStore.json');
+    }
+}
+
+function saveTokens() {
+    fs.writeFileSync(TOKEN_STORE_PATH, JSON.stringify(tokenRegistry, null, 2));
+}
+
+export function getCurrentTokens() {
+    return tokenRegistry;
+}
 
 const deepseek = new OpenAI({ apiKey: process.env.DEEPSEEK_API_KEY, baseURL: 'https://api.deepseek.com' });
 const groq = new OpenAI({ apiKey: process.env.GROQ_API_KEY, baseURL: 'https://api.groq.com/openai/v1' });
@@ -61,7 +87,12 @@ async function runFallbackAgent(primary: string, secondary: string, fetchPrimary
         socket.emit('agent_status', { agent: primary, status: 'Processing', progress: 60, task: 'Đang xử lý...' });
         const res = await fetchPrimary(prompt);
         socket.emit('agent_status', { agent: primary, status: 'Completed', progress: 100, task: 'Hoàn tất' });
-        socket.emit('token_usage', { agent: primary, tokensUsed: res.tokens });
+        
+        // Update Registry
+        tokenRegistry[primary] = (tokenRegistry[primary] || 0) + res.tokens;
+        saveTokens();
+
+        socket.emit('token_usage', { agent: primary, tokensUsed: res.tokens, total: tokenRegistry[primary] });
         return res;
     } catch (e: any) {
         console.error(`${primary} lỗi:`, e.message);
@@ -73,7 +104,12 @@ async function runFallbackAgent(primary: string, secondary: string, fetchPrimary
         try {
             const fallbackRes = await fetchSecondary(prompt);
             socket.emit('agent_status', { agent: secondary, status: 'Completed', progress: 100, task: 'Hoàn tất' });
-            socket.emit('token_usage', { agent: secondary, tokensUsed: fallbackRes.tokens });
+            
+            // Update Registry
+            tokenRegistry[secondary] = (tokenRegistry[secondary] || 0) + fallbackRes.tokens;
+            saveTokens();
+
+            socket.emit('token_usage', { agent: secondary, tokensUsed: fallbackRes.tokens, total: tokenRegistry[secondary] });
             socket.emit('agent_status', { agent: 'CEO', status: 'Processing', progress: 90, task: 'Tổng hợp nhánh' });
             return fallbackRes;
         } catch(e2: any) {
