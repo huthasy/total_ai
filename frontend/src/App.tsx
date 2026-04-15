@@ -5,7 +5,7 @@ import AgentStatusPanel from './components/AgentStatusPanel';
 import TokenMonitor from './components/TokenMonitor';
 import './index.css';
 
-const SOCKET_SERVER_URL = 'http://localhost:3001';
+const SOCKET_SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
