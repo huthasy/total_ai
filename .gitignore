@@ -1,0 +1,16 @@
+# Environment variables
+.env
+.env.local
+
+# Node
+node_modules/
+dist/
+build/
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# TypeScript
+*.tsbuildinfo
