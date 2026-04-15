@@ -1,5 +1,10 @@
 import fs from 'fs';
 import path from 'path';
+import { Socket } from 'socket.io';
+import { OpenAI } from 'openai';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const TOKEN_STORE_PATH = path.join(__dirname, '../../tokenStore.json');
 
