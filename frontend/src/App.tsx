@@ -13,6 +13,13 @@ export interface ChatMessage {
   content: string;
 }
 
+export interface ChatSession {
+  id: string;
+  name: string;
+  messages: ChatMessage[];
+  timestamp: number;
+}
+
 export interface AgentStatus {
   agent: string;
   status: 'Thinking' | 'Processing' | 'Completed' | 'Idle';
@@ -21,9 +28,13 @@ export interface AgentStatus {
 }
 
 function App() {
-  const [messages, setMessages] = useState<ChatMessage[]>(() => {
-    const saved = localStorage.getItem('total_ai_chat_history');
+  const [sessions, setSessions] = useState<ChatSession[]>(() => {
+    const saved = localStorage.getItem('total_ai_sessions');
     return saved ? JSON.parse(saved) : [];
+  });
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(() => {
+    const saved = localStorage.getItem('total_ai_current_session_id');
+    return saved || null;
   });
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 768);
   const [agentStatuses, setAgentStatuses] = useState<Record<string, AgentStatus>>({
@@ -43,10 +54,16 @@ function App() {
 
   const socketRef = useRef<Socket | null>(null);
 
-  // Save chat to localStorage
+  const currentSession = sessions.find(s => s.id === currentSessionId);
+  const messages = currentSession?.messages || [];
+
+  // Save state to localStorage
   useEffect(() => {
-    localStorage.setItem('total_ai_chat_history', JSON.stringify(messages));
-  }, [messages]);
+    localStorage.setItem('total_ai_sessions', JSON.stringify(sessions));
+    if (currentSessionId) {
+      localStorage.setItem('total_ai_current_session_id', currentSessionId);
+    }
+  }, [sessions, currentSessionId]);
 
   useEffect(() => {
     socketRef.current = io(SOCKET_SERVER_URL);
@@ -59,7 +76,12 @@ function App() {
     });
 
     socketRef.current.on('chat_history', (msg: ChatMessage) => {
-      setMessages(prev => [...prev, msg]);
+      setSessions(prev => prev.map(s => {
+        if (s.id === currentSessionId) {
+          return { ...s, messages: [...s.messages, msg] };
+        }
+        return s;
+      }));
     });
 
     socketRef.current.on('initial_tokens', (data: Record<string, number>) => {
@@ -79,8 +101,39 @@ function App() {
   }, []);
 
   const handleSendMessage = (prompt: string) => {
-    setMessages(prev => [...prev, { role: 'user', content: prompt }]);
+    let sid = currentSessionId;
+    if (!sid) {
+      sid = Date.now().toString();
+      const newSession: ChatSession = {
+        id: sid,
+        name: prompt.length > 25 ? prompt.substring(0, 25) + '...' : prompt,
+        messages: [],
+        timestamp: Date.now()
+      };
+      setSessions(prev => [newSession, ...prev]);
+      setCurrentSessionId(sid);
+    }
+
+    setSessions(prev => prev.map(s => {
+      if (s.id === sid) {
+        return { ...s, messages: [...s.messages, { role: 'user', content: prompt }] };
+      }
+      return s;
+    }));
     socketRef.current?.emit('new_task', { prompt, mode: 'Normal' });
+  };
+
+  const handleNewChat = () => {
+    setCurrentSessionId(null);
+  };
+
+  const handleDeleteSession = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSessions(prev => prev.filter(s => s.id !== id));
+    if (currentSessionId === id) {
+      setCurrentSessionId(null);
+      localStorage.removeItem('total_ai_current_session_id');
+    }
   };
 
   return (
@@ -95,18 +148,29 @@ function App() {
             <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.8rem' }}>Multi-Agent Orchestration</p>
           </div>
         </div>
-        <button className="new-chat-btn" onClick={() => {
-          if (confirm('Delete all chat history?')) {
-            setMessages([]);
-            localStorage.removeItem('total_ai_chat_history');
-          }
-        }}>
+        <button className="new-chat-btn" onClick={handleNewChat}>
           + New Chat
         </button>
       </header>
-      
+
       <main className="main-content">
         <div className={`left-panel ${isSidebarOpen ? 'open' : 'closed'}`}>
+          <div className="card" style={{ marginBottom: '1.5rem' }}>
+             <h2 className="card-title">Recent Chats</h2>
+             <div className="session-list">
+               {sessions.map(s => (
+                 <div 
+                   key={s.id} 
+                   className={`session-item ${s.id === currentSessionId ? 'active' : ''}`}
+                   onClick={() => setCurrentSessionId(s.id)}
+                 >
+                   <span className="session-name">💬 {s.name}</span>
+                   <button className="btn-delete-session" onClick={(e) => handleDeleteSession(s.id, e)}>×</button>
+                 </div>
+               ))}
+               {sessions.length === 0 && <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center' }}>No history yet</p>}
+             </div>
+          </div>
           <AgentStatusPanel statuses={Object.values(agentStatuses)} />
           <TokenMonitor tokens={tokens} />
         </div>
