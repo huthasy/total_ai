@@ -1,4 +1,3 @@
-import React from 'react';
 import { AgentStatus } from '../App';
 
 export default function AgentStatusPanel({ statuses }: { statuses: AgentStatus[] }) {

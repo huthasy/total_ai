@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { ChatMessage } from '../App';
 import ReactMarkdown from 'react-markdown';
 import { Send } from 'lucide-react';
