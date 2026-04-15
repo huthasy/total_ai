@@ -3,6 +3,7 @@ import { io, Socket } from 'socket.io-client';
 import ChatInterface from './components/ChatInterface';
 import AgentStatusPanel from './components/AgentStatusPanel';
 import TokenMonitor from './components/TokenMonitor';
+import { Menu, X } from 'lucide-react';
 import './index.css';
 
 const SOCKET_SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -20,7 +21,11 @@ export interface AgentStatus {
 }
 
 function App() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    const saved = localStorage.getItem('total_ai_chat_history');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 768);
   const [agentStatuses, setAgentStatuses] = useState<Record<string, AgentStatus>>({
     CEO: { agent: 'CEO', status: 'Idle', progress: 0, task: 'Ready' },
     Gemini: { agent: 'Gemini', status: 'Idle', progress: 0, task: 'Ready' },
@@ -37,6 +42,11 @@ function App() {
   });
 
   const socketRef = useRef<Socket | null>(null);
+
+  // Save chat to localStorage
+  useEffect(() => {
+    localStorage.setItem('total_ai_chat_history', JSON.stringify(messages));
+  }, [messages]);
 
   useEffect(() => {
     socketRef.current = io(SOCKET_SERVER_URL);
@@ -75,18 +85,28 @@ function App() {
 
   return (
     <div className="app-container">
-      <header className="header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2rem' }}>
-        <div>
-          <h1 style={{ margin: 0, background: 'linear-gradient(90deg, #ff8a00, #e52e71)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 800 }}>Total AI</h1>
-          <p style={{ margin: 0, color: 'var(--text-muted)' }}>Multi-Agent Orchestration</p>
+      <header className="header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <button className="sidebar-toggle" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+            {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+          <div>
+            <h1 style={{ margin: 0, background: 'linear-gradient(90deg, #ff8a00, #e52e71)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 800, fontSize: '1.5rem' }}>Total AI</h1>
+            <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.8rem' }}>Multi-Agent Orchestration</p>
+          </div>
         </div>
-        <button className="new-chat-btn" onClick={() => setMessages([])}>
+        <button className="new-chat-btn" onClick={() => {
+          if (confirm('Delete all chat history?')) {
+            setMessages([]);
+            localStorage.removeItem('total_ai_chat_history');
+          }
+        }}>
           + New Chat
         </button>
       </header>
       
       <main className="main-content">
-        <div className="left-panel">
+        <div className={`left-panel ${isSidebarOpen ? 'open' : 'closed'}`}>
           <AgentStatusPanel statuses={Object.values(agentStatuses)} />
           <TokenMonitor tokens={tokens} />
         </div>
