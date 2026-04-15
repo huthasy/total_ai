@@ -13,8 +13,9 @@ export default function TokenMonitor({ tokens }: { tokens: Record<string, number
       <h2 className="card-title">Token Usage Monitor</h2>
       <div className="token-list">
         {Object.entries(tokens).map(([agent, used]) => {
+          const currentUsed = Number(used) || 0;
           const limit = LIMITS[agent as keyof typeof LIMITS] || 10000;
-          const percentage = Math.min((used / limit) * 100, 100).toFixed(1);
+          const percentage = Math.min((currentUsed / limit) * 100, 100).toFixed(1);
           return (
             <div key={agent} className="token-item">
               <div className="token-header">

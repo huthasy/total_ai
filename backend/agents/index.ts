@@ -94,10 +94,11 @@ async function runFallbackAgent(primary: string, secondary: string, fetchPrimary
         socket.emit('agent_status', { agent: primary, status: 'Completed', progress: 100, task: 'Hoàn tất' });
         
         // Update Registry
-        tokenRegistry[primary] = (tokenRegistry[primary] || 0) + res.tokens;
+        const tokensProduced = Number(res.tokens) || 0;
+        tokenRegistry[primary] = (tokenRegistry[primary] || 0) + tokensProduced;
         saveTokens();
 
-        socket.emit('token_usage', { agent: primary, tokensUsed: res.tokens, total: tokenRegistry[primary] });
+        socket.emit('token_usage', { agent: primary, tokensUsed: tokensProduced, total: tokenRegistry[primary] });
         return res;
     } catch (e: any) {
         console.error(`${primary} lỗi:`, e.message);
@@ -111,10 +112,11 @@ async function runFallbackAgent(primary: string, secondary: string, fetchPrimary
             socket.emit('agent_status', { agent: secondary, status: 'Completed', progress: 100, task: 'Hoàn tất' });
             
             // Update Registry
-            tokenRegistry[secondary] = (tokenRegistry[secondary] || 0) + fallbackRes.tokens;
+            const tokensProducedFallback = Number(fallbackRes.tokens) || 0;
+            tokenRegistry[secondary] = (tokenRegistry[secondary] || 0) + tokensProducedFallback;
             saveTokens();
 
-            socket.emit('token_usage', { agent: secondary, tokensUsed: fallbackRes.tokens, total: tokenRegistry[secondary] });
+            socket.emit('token_usage', { agent: secondary, tokensUsed: tokensProducedFallback, total: tokenRegistry[secondary] });
             socket.emit('agent_status', { agent: 'CEO', status: 'Processing', progress: 90, task: 'Tổng hợp nhánh' });
             return fallbackRes;
         } catch(e2: any) {

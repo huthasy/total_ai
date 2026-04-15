@@ -36,6 +36,7 @@ function App() {
     const saved = localStorage.getItem('total_ai_current_session_id');
     return saved || null;
   });
+  const currentSessionIdRef = useRef<string | null>(currentSessionId);
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 768);
   const [agentStatuses, setAgentStatuses] = useState<Record<string, AgentStatus>>({
     CEO: { agent: 'CEO', status: 'Idle', progress: 0, task: 'Ready' },
@@ -57,8 +58,9 @@ function App() {
   const currentSession = sessions.find(s => s.id === currentSessionId);
   const messages = currentSession?.messages || [];
 
-  // Save state to localStorage
+  // Sync ref with state
   useEffect(() => {
+    currentSessionIdRef.current = currentSessionId;
     localStorage.setItem('total_ai_sessions', JSON.stringify(sessions));
     if (currentSessionId) {
       localStorage.setItem('total_ai_current_session_id', currentSessionId);
@@ -77,7 +79,7 @@ function App() {
 
     socketRef.current.on('chat_history', (msg: ChatMessage) => {
       setSessions(prev => prev.map(s => {
-        if (s.id === currentSessionId) {
+        if (s.id === currentSessionIdRef.current) {
           return { ...s, messages: [...s.messages, msg] };
         }
         return s;
